@@ -1,0 +1,58 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# Set page config for a professional look
+st.set_page_config(page_title="F1 2025 Win Predictor", layout="wide")
+
+st.title("🏎️ F1 2025 Season: Win Probability Dashboard")
+st.markdown("Interactive predictions based on historical performance and 2025 model data.")
+
+# 1. Load the data
+@st.cache_data
+def load_data():
+    # Make sure this filename matches your uploaded CSV exactly
+    df = pd.read_csv("f1_2025_full_model_output.csv")
+    return df
+
+df = load_data()
+
+# 2. Sidebar Filters
+st.sidebar.header("Filter Predictions")
+all_drivers = sorted(df['driver'].unique())
+all_races = sorted(df['race'].unique())
+
+selected_driver = st.sidebar.selectbox("Select a Driver", all_drivers, index=all_drivers.index("Lando Norris") if "Lando Norris" in all_drivers else 0)
+selected_race = st.sidebar.selectbox("Select a Race", all_races)
+
+# 3. Main Display Logic
+filtered_row = df[(df['driver'] == selected_driver) & (df['race'] == selected_race)]
+
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.subheader(f"Stats for {selected_driver}")
+    if not filtered_row.empty:
+        prob = filtered_row['predicted_win_probability'].values[0]
+        st.metric(label="Win Probability", value=f"{prob:.1f}%")
+        st.info(f"Location: {selected_race}")
+    else:
+        st.warning("No data found for this combination.")
+
+with col2:
+    st.subheader(f"Field Comparison: {selected_race}")
+    # Show how all drivers compare for the selected race
+    race_data = df[df['race'] == selected_race].sort_values("predicted_win_probability", ascending=False)
+    
+    fig = px.bar(
+        race_data, 
+        x='driver', 
+        y='predicted_win_probability',
+        labels={'predicted_win_probability': 'Win %', 'driver': 'Driver'},
+        color='predicted_win_probability',
+        color_continuous_scale='RdBu'
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+st.dataframe(df.head(10)) # Shows raw data preview at the bottom
